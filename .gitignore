@@ -2,7 +2,7 @@
 # on your exact version, which plugins are installed, etc., so ignore everything
 # except for a vetted list of things we want. In particular, we want code
 # formatting style (which needs to match the checkstyle Maven configuration).
-/.idea/*
+/.idea/vcs.xml
 
 # Don't want any encryption keys in version control
 *.jks
