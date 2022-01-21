@@ -29,7 +29,7 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
      */
     public function parseFlowLabCSV($flowlab_csv) {
 
-        // $this->emDebug("parseFlowLabCSV() called.");
+        $this->emDebug("parseFlowLabCSV() called.");
 
         // parse CSV into array, line by line
         $flowlab_lines = str_getcsv($flowlab_csv, PHP_EOL);
@@ -47,7 +47,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
             '"tdsr_apache2_cr_min","tdsr_apache2_cr_max",' .
             '"tdsr_apache2_hct_min","tdsr_apache2_hct_max",' .
             '"tdsr_apache2_pha_min","tdsr_apache2_pha_max",' .
-            '"tdsr_apache2_phv_min","tdsr_apache2_phv_max",' .
             '"tdsr_apache2_pao2_min","tdsr_apache2_pao2_max",' .
             '"tdsr_apache2_wbc_min","tdsr_apache2_wbc_max"';
         while($flowlab_lines[0] !== $header) {
@@ -58,7 +57,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
         $flowlab_results = array();
         foreach($flowlab_lines as $line) {
             $result = str_getcsv($line, ',');
-            $this->emDebug("record_id" . $result[0]);
             $flowlab_results[] = array(
                 "record_id" => $result[0],
                 "tdsr_apache2_age" => $result[1],
@@ -84,15 +82,13 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
                 "tdsr_apache2_hct_max" => $result[21],
                 "tdsr_apache2_pha_min" => $result[22],
                 "tdsr_apache2_pha_max" => $result[23],
-                "tdsr_apache2_phv_min" => $result[24],
-                "tdsr_apache2_phv_max" => $result[25],
-                "tdsr_apache2_pao2_min" => $result[26],
-                "tdsr_apache2_pao2_max" => $result[27],
-                "tdsr_apache2_wbc_min" => $result[28],
-                "tdsr_apache2_wbc_max" => $result[29]
+                "tdsr_apache2_pao2_min" => $result[24],
+                "tdsr_apache2_pao2_max" => $result[25],
+                "tdsr_apache2_wbc_min" => $result[26],
+                "tdsr_apache2_wbc_max" => $result[27]
             );
         }
-        $this->emDebug($flowlab_results);
+        // $this->emDebug($flowlab_results);
         return $flowlab_results;
     }
 
@@ -288,8 +284,8 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
                 $aao2_min = min($aao2_arr_record);
             }
 
-            $this->emDebug('getAao2() for record ' . $record_id . ':');
-            $this->emDebug($aao2_arr_record);
+           // $this->emDebug('getAao2() for record ' . $record_id . ':');
+           // $this->emDebug($aao2_arr_record);
 
             $aao2_minmax[] = array(
                 'record_id' => strval($record->record_id),
@@ -302,7 +298,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
 
     // save results
     public function saveResults($pid, $data) {
-        // $project_id (i.e., $pid) param is optional
         $this->emDebug("saveData() called.");
         $params = array(
             'project_id' => $pid,
@@ -311,7 +306,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
             'data' => json_encode($data),
             'overwriteBehavior' => 'overwrite'
         );
-        $this->emDebug("\$params for saveData(): " . implode(" ||| ", $params));
         $response = REDCap::saveData($params);
         $this->emDebug($response);
     }

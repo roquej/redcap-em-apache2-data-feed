@@ -26,8 +26,8 @@
     "links": {
         "project": [
             {
-                "name": "APACHE II: A-a Gradient score calculations",
-                "url": "aado2.php"
+                "name": "APACHE II: Request Data",
+                "url": "request.php"
             }
         ],
         "control-center": [

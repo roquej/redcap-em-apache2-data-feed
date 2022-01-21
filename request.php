@@ -15,28 +15,24 @@ if (isset($_POST['get_data'])) {
     $rtsl->syncRecords($pid); // sync records
 
     // query and save parameters via REDCap to STARR Link, excluding A-a Gradient scores
+    $module->emDebug("For project " . $pid . ": Processing 'apache2_flowlabs' query via REDCap to STARR Link.");
     $flowlab_csv = $rtsl->streamData($pid, 'apache2_flowlabs', 1, array());
-    // $module->emDebug($flowlab_csv);
     $flowlab_results = $module->parseFlowLabCSV($flowlab_csv);
     $module->saveResults($pid, $flowlab_results);
-    // $module->emDebug($flowlab_data);
+    $module->emDebug("For project " . $pid . ": Finished processing 'apache2_flowlabs' query via REDCap to STARR Link.");
+
 
     // process A-a Gradient scores
     $aao2_csv = $rtsl->streamData($pid, 'apache2_aao2', 1, array());
-    // echo "Calculating A-a gradient scores... ";
     $aao2_data = $module->parseAao2CSV($aao2_csv);
     $records = $module->getRecords($pid);
-    // $module->emDebug($records);
-    $aao2_results = array_chunk($module->getAao2Scores($records,
-                                                       $aao2_data['pao2'],
-                                                       $aao2_data['paco2'],
-                                                       $aao2_data['fio2']),
-                                10);
+    $aao2_results = $module->getAao2Scores($records,
+                                           $aao2_data['pao2'],
+                                           $aao2_data['paco2'],
+                                           $aao2_data['fio2']);
     $module->emDebug($aao2_results);
-    foreach($aao2_results as $chunk_results) {
-        $module->saveResults($pid, $chunk_results);
-    }
-    // echo "A-a gradient calculations completed and saved.";
+
+    $module->saveResults($pid, $aao2_results);
 
     $module->emDebug("FINISHED");
 }
