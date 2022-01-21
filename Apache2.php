@@ -4,7 +4,6 @@ namespace Stanford\Apache2;
 use REDCap;
 
 require_once "emLoggerTrait.php";
-// require_once "Apache2AaGradient.php";
 
 class Apache2 extends \ExternalModules\AbstractExternalModule {
 
