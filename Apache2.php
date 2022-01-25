@@ -152,22 +152,10 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
 
     // returns array of REDCap record IDs based on project
     public function getRecords($pid) {
-        /*
-        // $this->emDebug("getRecords() called.");
-        $params_test = array(
-            'project_id' => $pid,
-            'return_format' => 'array',
-            'fields' => array('record_id')
-            // 'fields' => array(REDCap::getRecordIdField())
-        );
-        $data = REDCap::getData($params_test);
-        $this->emDebug($data);
-        */
         $params = array(
             'project_id' => $pid,
             'return_format' => 'json',
             'fields' => array('record_id')
-            // 'fields' => array(REDCap::getRecordIdField())
         );
 
         return REDCap::getData($params);
@@ -176,14 +164,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
     // gets most prior value in $array up to date-time as set by $pao2_dttm parameter
     public function mostPriorPaco2($pao2_dttm, $paco2_arr) {
         // create new associative array of objects with date-time on or before $pao2_dttm
-       /*
-        $new_paco2_arr = [];
-        foreach ($paco2_arr as $paco2) {
-            if (strtotime($paco2["dttm"]) <= strtotime($pao2_dttm)) {
-                $new_paco2_arr[] = $paco2;
-            }
-        }
-        */
         $new_paco2_arr = array_filter($paco2_arr, function ($key) use ($pao2_dttm) {
             return (strtotime($key['dttm']) <= strtotime($pao2_dttm));
         });
@@ -207,14 +187,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
     // gets most prior value in $fio2_arr up to (but NOT at the same date-time) date-time as set by $pao2_dttm parameter
     public function mostPriorFio2($pao2_dttm, $fio2_arr) {
         // create new associative array of objects with date-time before $pao2_dttm
-        /*
-         $new_fio2_arr = [];
-         foreach ($new_fio2_arr as $fio2) {
-             if (strtotime($fio2["dttm"]) <= strtotime($pao2_dttm)) {
-                 $new_fio2_arr[] = $fio2;
-             }
-         }
-         */
         $new_fio2_arr = array_filter($fio2_arr, function ($key) use ($pao2_dttm) {
             return (strtotime($key['dttm']) < strtotime($pao2_dttm));
         });
@@ -273,9 +245,7 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
                     continue;
                 } else {
                     $pao2_val = $pao2['value'];
-                    // $this->emDebug('$paco2_val | $fio2_val | $pao2_val: ' . $paco2_val . ' | ' . $fio2_val . ' | ' . $pao2_val);
                     $aao2_val = $this->calculateAao2($pao2_val, $paco2_val, $fio2_val);
-                    // $this->emDebug('$aao2_val: ' . $aao2_val);
                     $aao2_arr_record[] = $aao2_val;
                 }
             }

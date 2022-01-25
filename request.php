@@ -21,7 +21,6 @@ if (isset($_POST['get_data'])) {
     $module->saveResults($pid, $flowlab_results);
     $module->emDebug("For project " . $pid . ": Finished processing 'apache2_flowlabs' query via REDCap to STARR Link.");
 
-
     // process A-a Gradient scores
     $aao2_csv = $rtsl->streamData($pid, 'apache2_aao2', 1, array());
     $aao2_data = $module->parseAao2CSV($aao2_csv);
@@ -31,7 +30,6 @@ if (isset($_POST['get_data'])) {
                                            $aao2_data['paco2'],
                                            $aao2_data['fio2']);
     $module->emDebug($aao2_results);
-
     $module->saveResults($pid, $aao2_results);
 
     $module->emDebug("FINISHED");
