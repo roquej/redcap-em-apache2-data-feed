@@ -11,7 +11,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
 
     public function __construct() {
 		parent::__construct();
-        // Other code to run when object is instantiated
     }
 
     /*
@@ -28,9 +27,6 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
      * parses flowlab APACHE II data as CSV into an array
      */
     public function parseFlowLabCSV($flowlab_csv) {
-
-        $this->emDebug("parseFlowLabCSV() called.");
-
         // parse CSV into array, line by line
         $flowlab_lines = str_getcsv($flowlab_csv, PHP_EOL);
 
@@ -279,20 +275,4 @@ class Apache2 extends \ExternalModules\AbstractExternalModule {
         $response = REDCap::saveData($params);
         $this->emDebug($response);
     }
-
-    // Triggered when a module gets enabled on Control Center.
-	public function redcap_module_system_enable( $version ) {
-
-	}
-
-    // Triggered when a module gets enabled on a specific project.
-	public function redcap_module_project_enable( $version, $project_id ) {
-
-	}
-
-    // Triggered after a module configuration is saved.
-	public function redcap_module_save_configuration( $project_id ) {
-
-	}
-
 }
