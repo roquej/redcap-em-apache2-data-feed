@@ -1,6 +1,6 @@
 <?php
-namespace Stanford\Apache2;
-/** @var Apache2 $this */
+namespace Stanford\Apache2DataFeed;
+/** @var Apache2DataFeed $this */
 
 trait emLoggerTrait
 {

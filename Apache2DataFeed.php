@@ -1,11 +1,15 @@
 <?php
-namespace Stanford\Apache2;
+namespace Stanford\Apache2DataFeed;
 
 use REDCap;
 
 require_once "emLoggerTrait.php";
 
-class Apache2 extends \ExternalModules\AbstractExternalModule {
+/**
+ * Class Apache2DataFeed
+ * @
+ */
+class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
 
     use emLoggerTrait;
 

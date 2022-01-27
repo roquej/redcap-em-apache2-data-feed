@@ -1,5 +1,5 @@
 <?php
-namespace Stanford\Apache2;
+namespace Stanford\Apache2DataFeed;
 require_once "emLoggerTrait.php";
 
 use REDCap;

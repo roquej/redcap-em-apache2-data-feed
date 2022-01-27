@@ -1,7 +1,7 @@
 {
-    "name": "Apache2",
+    "name": "Apache II Data Feed",
 
-    "namespace": "Stanford\\Apache2",
+    "namespace": "Stanford\\Apache2DataFeed",
 
     "description": "A REDCap External Module to extract APACHE II scoring parameters based on EMR data",
 
@@ -11,14 +11,12 @@
         {
             "name": "Jonasel Roque",
             "email": "jonaselr@stanford.edu",
-            "institution": "Stanford University"
+            "institution": "Stanford University & Stanford Health Care",
         }
     ],
 
     "permissions": [
-        "redcap_module_system_enable",
-        "redcap_module_project_enable",
-        "redcap_module_save_configuration"
+
     ],
 
     "enable-every-page-hooks-on-system-pages": false,
@@ -26,8 +24,8 @@
     "links": {
         "project": [
             {
-                "name": "APACHE II: Request Data",
-                "url": "request.php"
+                "name": "APACHE II Data Feed",
+                "url": "requestPage.php"
             }
         ],
         "control-center": [
