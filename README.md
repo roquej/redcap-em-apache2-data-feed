@@ -1,4 +1,4 @@
-# Apache II  Data Feed External Module
+# Apache II Data Feed External Module
 
 ## Introduction
 A REDCap External Module to extract [APACHE II](https://pubmed.ncbi.nlm.nih.gov/3928249/) scoring parameters based on EMR data.
@@ -24,9 +24,9 @@ Also, this EM currently only works with REDCap projects with a non-longitudinal,
 A data use agreement (attestation?) should be submitted for each project that uses this EM.
 
 ### User document
-Researchers can refer to this user document for guidance on this APACHE II EM, hosted on Google Drive:
+Researchers can refer to this user document for guidance on this APACHE II Data Feed EM, hosted on Google Drive:
 
-[APACHE II EM Installation/Configuration Instructions for Researchers](https://www.example.com)
+[APACHE II Data Feed EM Installation/Configuration Instructions for Researchers](https://www.example.com)
 
 ## Dependencies
 ### REDCap to STARR Link EM and queries to store
@@ -37,13 +37,13 @@ Project-level REDCap to STARR Link specifics:
 1. REDCap to STARR Link should be configured to sync with REDCap as the source:
    1. The STARR Identifier field should be configured to a field containing MRN.
    2. Date field `dt1` should be configured to enrollment date should be configured.
-2. The APACHE II EM requires calling the REDCap to STARR Link API using these queries:
+2. The APACHE II Data Feed EM requires calling the REDCap to STARR Link API using these queries:
    1. `apache2_flowlabs`
    2. `apache2_aao2`
    3. Copies of these queries are in the `/REDCaptoSTARRLinkSQL` folder.
 
-### REDCap Data Dictionary for APACHE II EM
-The results of the APACHE II EM data querying/processing are mapped to fields with a `tdsr_apache2` prefix.
+### REDCap Data Dictionary for APACHE II Data Feed EM
+The results of the APACHE II Data Feed EM data querying/processing are mapped to fields with a `tdsr_apache2` prefix.
 REDCap projects need this EM's provided data dictionary to be merged with their own projects in order to work.
 
 

@@ -1,34 +1,27 @@
 <?php
 namespace Stanford\Apache2DataFeed;
-
+require_once "emLoggerTrait.php";
 use REDCap;
 
-require_once "emLoggerTrait.php";
 
 /**
  * Class Apache2DataFeed
- * @
+ * @package Stanford\Apache2DataFeed
+ *
+ * This module utilizes the REDCap to STARR Link API to pull APACHE II parameters to STARR and save them to REDCap projects.
+ *
  */
 class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
-
     use emLoggerTrait;
 
     public function __construct() {
 		parent::__construct();
     }
 
-    /*
-     * gets data in CSV format (streamed, not saved as a file) via REDCap to STARR Link
-     */
-    public function getData($pid, $query_name, $arm, $fields) {
-        $rtsl = \ExternalModules\ExternalModules::getModuleInstance('redcap_to_starr_link');
-        $rtsl->syncRecords($pid); // sync records
-        $response = $rtsl->streamData($pid, $query_name, $arm, $fields); // data retrieval
-        return $response;
-    }
-
-    /*
-     * parses flowlab APACHE II data as CSV into an array
+    /**
+     * parses data retrieved via REDCap to STARR Link query 'apache2_flowlabs'
+     * @param $flowlab_csv
+     * @return array[]
      */
     public function parseFlowLabCSV($flowlab_csv) {
         // parse CSV into array, line by line
@@ -88,30 +81,39 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                 "tdsr_apache2_wbc_max" => $result[27]
             );
         }
-        // $this->emDebug($flowlab_results);
+        $this->emDebug($flowlab_results);
         return $flowlab_results;
     }
 
-    /*
-     * returns a multidimensional associative array
+    /**
+     * parses data retrieved via REDCap to STARR Link query 'apache2_aao2'
+     * @param $aao2_csv
+     * @return array[
+     *          'fio2' => array[
+     *                       'id',
+     *                       'dttm',
+     *                       'value']
+     *          'pao2' => array[
+     *                       'id',
+     *                       'dttm',
+     *                       'value']
+     *          'paco2' => array[
+     *                       'id',
+     *                       'dttm',
+     *                       'value']
+     *              ]
      */
-    public function parseAao2CSV($response_csv) {
-        // $this->emDebug("parseAao2CSV(): parsing started...");
+    public function parseAao2CSV($aao2_csv) {
         $fio2  = [];
         $pao2  = [];
         $paco2 = [];
-        // $this->emDebug("parseAao2CSV(): removing headers...");
 
-        $response_arr = str_getcsv($response_csv, PHP_EOL);
+        $response_arr = str_getcsv($aao2_csv, PHP_EOL);
         while($response_arr[0] !== 'redcap_record_id,"type","dttm","value"') {
-            // $this->emDebug("removing: " . $response_arr[0]);
             array_shift($response_arr);
         }
-        // $this->emDebug("removing: " . $response_arr[0]);
         array_shift($response_arr);
 
-        // $this->emDebug("parseAao2CSV(): headers removed...");
-        // $this->emDebug("top of array: " . $response_arr[0]);
         foreach($response_arr as $line) {
             $result = str_getcsv($line, ',');
             $type = $result[1];
@@ -120,7 +122,6 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                                "dttm"  => $result[2],
                                "value" => $result[3]
                               );
-            // $this->emDebug("\$recording: " . implode('|||', $recording));
             switch ($type) {
                 case 'FiO2':
                     $fio2[] = $recording;
@@ -132,7 +133,7 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                     $paco2[] = $recording;
                     break;
                 default:
-                    $this->emDebug($type . " did not match FiO2, PaO2, or PaCO2");
+                    $this->emError($type . " did not match FiO2, PaO2, or PaCO2");
                     break;
             }
         }
@@ -146,29 +147,39 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                             'pao2'  => $pao2,
                             'paco2' => $paco2
                            );
-        // $this->emDebug($aado2_data);
+        $this->emDebug($aado2_data);
         return $aado2_data;
     }
 
-    // returns array of REDCap record IDs based on project
-    public function getRecords($pid) {
+    /**
+     * returns the project's REDCap record IDs
+     * @return mixed
+     */
+    public function getRecords() {
         $params = array(
             'project_id' => $pid,
             'return_format' => 'json',
             'fields' => array('record_id')
         );
-
-        return REDCap::getData($params);
+        $records = REDCap::getData($params);
+        $this->emDebug("List of records retrieved: " . $records);
+        return $records;
     }
 
-    // gets most prior value in $array up to date-time as set by $pao2_dttm parameter
+    /**
+     * Returns most prior value of PaCO2 up to the date-time as set by $pao2_dttm
+     * Returns '-99' if there's no possible PaCO2 value
+     * @param $pao2_dttm
+     * @param $paco2_arr
+     * @return int|mixed
+     */
     public function mostPriorPaco2($pao2_dttm, $paco2_arr) {
         // create new associative array of objects with date-time on or before $pao2_dttm
         $new_paco2_arr = array_filter($paco2_arr, function ($key) use ($pao2_dttm) {
             return (strtotime($key['dttm']) <= strtotime($pao2_dttm));
         });
 
-        // get most recent value based on $pao2_dttm, return -99 if none found i.e., empty new_paco2_arr
+        // get most recent value based on $pao2_dttm, return -99 if none found i.e., empty $new_paco2_arr
         $latest_paco2 = -99;
         if(count($new_paco2_arr) > 0) {
             usort(
@@ -184,7 +195,13 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         return $latest_paco2;
     }
 
-    // gets most prior value in $fio2_arr up to (but NOT at the same date-time) date-time as set by $pao2_dttm parameter
+    /**
+     * Returns most prior value of FiO2 up to, but NOT at the same date-time, the date-time as set by $pao2_dttm
+     * Returns '-99' if there's no possible FiO2 value
+     * @param $pao2_dttm
+     * @param $fio2_arr
+     * @return int|mixed
+     */
     public function mostPriorFio2($pao2_dttm, $fio2_arr) {
         // create new associative array of objects with date-time before $pao2_dttm
         $new_fio2_arr = array_filter($fio2_arr, function ($key) use ($pao2_dttm) {
@@ -207,7 +224,13 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         return $latest_fio2;
     }
 
-    // calculates and returns A-a Gradient
+    /**
+     * Calculates and returns an A-a Gradient score
+     * @param $pao2_val
+     * @param $paco2_val
+     * @param $fio2_val
+     * @return float|int
+     */
     public function calculateAao2($pao2_val, $paco2_val, $fio2_val) {
         $atm_pressure = 760; // atmospheric pressure
         $h2o_pressure = 47; // water vapor pressure
@@ -215,15 +238,20 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         return (floatval($fio2_val) * ($atm_pressure - $h2o_pressure) - (floatval($paco2_val) / $rq)) - floatval($pao2_val);
     }
 
-    // returns maximum calculated A-a Gradient
-    // returns -99 if no A-a Gradients could be calculated
+    /**
+     * Calculates all possible A-a Gadient scores
+     * Returns minimum and maximum scores for each record
+     * Returns '-99' as scores for records without any possible A-a Gradient scores
+     * @param $records
+     * @param $pao2_arr
+     * @param $paco2_arr
+     * @param $fio2_arr
+     * @return array[]
+     */
     public function getAao2Scores($records, $pao2_arr, $paco2_arr, $fio2_arr) {
         $aao2_minmax = [];
         $records_arr = json_decode($records);
-        // $this->emDebug($fio2_arr);
         foreach($records_arr as $record) {
-            // $this->emDebug('Record_id is: ');
-            // $this->emDebug($record->record_id);
             $record_id = $record->record_id;
             $aao2_max = -99;
             $aao2_min = -99;
@@ -231,7 +259,6 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
             $fio2_arr_record = array_filter($fio2_arr, function ($key) use ($record_id) {
                 return ($key['id'] === $record_id);
             });
-            // $this->emDebug('Filtered $fio2_arr_record for ' . $record->record_id . ': ' . count($fio2_arr_record));
             $pao2_arr_record = array_filter($pao2_arr, function ($key) use ($record_id) {
                 return ($key['id'] === $record_id);
             });
@@ -254,21 +281,22 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                 $aao2_min = min($aao2_arr_record);
             }
 
-           // $this->emDebug('getAao2() for record ' . $record_id . ':');
-           // $this->emDebug($aao2_arr_record);
-
             $aao2_minmax[] = array(
                 'record_id' => strval($record->record_id),
                 'tdsr_apache2_aao2_min' => strval($aao2_min),
                 'tdsr_apache2_aao2_max' => strval($aao2_max)
             );
         }
+        $this->emDebug("Results of A-a Gradient calculations: " . $aao2_minmax);
         return $aao2_minmax;
     }
 
-    // save results
-    public function saveResults($pid, $data) {
-        $this->emDebug("saveData() called.");
+    /**
+     * Save data back to REDCap
+     * @param $data
+     * @return mixed
+     */
+    public function saveResults($data) {
         $params = array(
             'project_id' => $pid,
             'dataFormat' => 'json',
@@ -278,5 +306,6 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         );
         $response = REDCap::saveData($params);
         $this->emDebug($response);
+        return $response;
     }
 }
