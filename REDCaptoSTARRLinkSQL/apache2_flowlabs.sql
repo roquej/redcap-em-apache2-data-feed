@@ -63,7 +63,7 @@ WITH
     icu_age AS
         (
         SELECT
-            pat_map.redcap_record_id AS record_id,
+            pat_map.redcap_record_id AS redcap_record_id,
             pat_map.pat_map_id AS pat_map_id,
             SAFE.DATE_DIFF(SAFE.DATE(icu_admit.icu_admit_dttm), SAFE.DATE(pat_map.birth_date), YEAR) AS age,
         FROM pat_map AS pat_map
@@ -93,7 +93,7 @@ WITH
         ),
     fio2_max AS
         (
-        SELECT 
+        SELECT
             pat_map_id,
             MAX(CASE WHEN fio2.row_disp_name IN ('FiO2 (%)', 'O2 % Concentration') THEN SAFE_CAST(fio2.value AS DECIMAL) END) apache2_fio2_max
         FROM fio2
@@ -142,7 +142,7 @@ WITH
         ),
     labs AS
         (
-        SELECT 
+        SELECT
             labs.pat_map_id AS pat_map_id,
             labs.group_lab_name AS group_lab_name,
             labs.lab_name AS lab_name,
@@ -245,7 +245,7 @@ WITH
         INNER JOIN icu_admit AS icu_admit
             ON labs.pat_map_id = icu_admit.pat_map_id
         WHERE
-            ( 
+            (
             lab_name IN (
                         'Sodium',
                         'Sodium (CIRC), ISTAT',
@@ -373,7 +373,7 @@ WITH
     apache2_all AS
         (
         SELECT
-            icu_age.record_id AS record_id,
+            icu_age.redcap_record_id AS redcap_record_id,
             icu_age.age AS tdsr_apache2_age,
             icu_admit.icu_admit_dttm AS tdsr_apache2_icuadmit_dttm,
             vitals_minmax.apache2_temp_min AS tdsr_apache2_temp_min,
@@ -412,4 +412,4 @@ WITH
         LEFT JOIN labs_minmax AS labs_minmax
             ON icu_age.pat_map_id = labs_minmax.pat_map_id
         )
-SELECT DISTINCT * FROM apache2_all ORDER BY SAFE_CAST(record_id AS DECIMAL)
+SELECT DISTINCT * FROM apache2_all ORDER BY SAFE_CAST(redcap_record_id AS DECIMAL)

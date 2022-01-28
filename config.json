@@ -25,6 +25,7 @@
         "project": [
             {
                 "name": "APACHE II Data Feed",
+                "icon": "chart_bar",
                 "url": "requestPage.php"
             }
         ],

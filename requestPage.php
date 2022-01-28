@@ -50,12 +50,17 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // query and save parameters via REDCap to STARR Link, excluding A-a Gradient scores
     $flowlab_csv = $rtsl->streamData($pid, 'apache2_flowlabs', 1, array());
+    $module->emDebug($flowlab_csv);
     if($flowlab_csv === false) {
         $module->emError("rtsl->streamData() failed to retrieve data for query 'apache2_flowlabs'");
         exit($failure_exit);
     }
-    $module->emDebug("Results of RtSL query 'apace2_flowlabs' via streamData(): " . $flowlab_csv);
+    $module->emDebug("Results of RtSL query 'apache2_flowlabs' via streamData(): " . $flowlab_csv);
     $flowlab_results = $module->parseFlowLabCSV($flowlab_csv);
+    if($flowlab_results === false) {
+        $module->emError("removeHeaders() in parseFlowLabCSV() failed to remove headers from data streamed");
+        exit($failure_exit);
+    }
     $flowlab_save_response = $module->saveResults($flowlab_results);
     if(!empty($flowlab_save_response["errors"])) {
         $module->emError("Failed to save to REDCap: " . $flowlab_results);
@@ -71,6 +76,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     $module->emDebug("Results of RtSL query 'apace2_aao2' via streamData(): " . $aao2_csv);
     $aao2_data = $module->parseAao2CSV($aao2_csv);
+    if($aao2_data === false) {
+        $module->emError("removeHeaders() in parseAao2CSV() failed to remove headers from data streamed");
+        exit($failure_exit);
+    }
     $records = $module->getRecords();
     if(is_null($records)) {
         $module->emError("Failed to retrieve list of projects record IDs for A-a Gradient calculations");
@@ -125,10 +134,18 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php'; // maintain sidebar
             <div>
                 <h1>ERROR!</h1>
                 <p>Your project is missing necessary fields for this external module.</p>
-                <p>Add the TDS-Research APACHE II Score Data Dictionary to your project's data dictionary.</p>
-                <a href=<?php echo $module->getUrl("TDS-Research_ApacheII_Score_DataDictionary.csv", false, true); ?> download="TDS-Research_ApacheII_Score_DataDictionary.csv">
-                    Download the TDS-Research APACHE II Score Data Dictionary
+                <p>
+                    You will need the TDS-Research APACHE II Score Data Dictionary to your project's data dictionary.
+                    A simple method is to use the link below to download a data collection instrument containing the necessary fields.
+                    Then, you can upload the instrument ZIP file to your project via its Online Designer.
+                    Feel free to rename the uploaded instrument's name to 'TDSR APACHE II Score'.
+                    Furthermore, ensure that the fields in the provided data collection instrument are not renamed within your project.
+                    Otherwise, the APACHE II Data Feed may not properly save data as intended.
+                </p>
+                <a href=<?php echo $module->getUrl("TDSR-Research_ApacheII_DataCollectionInstrument.zip", false, true); ?> download="TDSR-Research_ApacheII_DataCollectionInstrument.zip">
+                    Download the TDS-Research APACHE II Score Data Collection Instrument
                 </a>
+                <p>Training on how to work with Data Dictionaries <a href="https://redcap.stanford.edu/redcap_v12.0.4/Home/index.php?action=training">is available here </a> in the "Building a project" section.</p>
             </div>
         <?php
         }

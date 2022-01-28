@@ -19,33 +19,39 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
+     * helper function for removing headers from data retrieved via REDCap to STARR Link
+     * called by parseFlowLabCSV()
+     * @param $csv_to_parse
+     * @return array|false
+     */
+    public function removeHeaders($csv_to_parse) {
+        $results_arr = str_getcsv($csv_to_parse, PHP_EOL);
+        // iterate over $results_arr until all header lines are removed
+        // stops when count($results_arr) > 1 in case a line starting with "redcap_record_id" is never matched
+        // to prevent infinite loop
+        while(substr($results_arr[0], 0, 16) !== "redcap_record_id" && count($results_arr) > 1) {
+            array_shift($results_arr);
+        }
+        // return false in case while loop exited due to no header match (or header is only element left)
+        if(count($results_arr) === 1) {
+            return false;
+        }
+        array_shift($results_arr);
+        $this->emDebug($results_arr);
+        return $results_arr;
+    }
+
+    /**
      * parses data retrieved via REDCap to STARR Link query 'apache2_flowlabs'
      * @param $flowlab_csv
-     * @return array[]
+     * @return array|false
      */
     public function parseFlowLabCSV($flowlab_csv) {
         // parse CSV into array, line by line
-        $flowlab_lines = str_getcsv($flowlab_csv, PHP_EOL);
-
-        // remove lines of header data from array
-        $header = 'record_id,"tdsr_apache2_age","tdsr_apache2_icuadmit_dttm",' .
-            '"tdsr_apache2_temp_min","tdsr_apache2_temp_max",' .
-            '"tdsr_apache2_map_min","tdsr_apache2_map_max",' .
-            '"tdsr_apache2_hr_min","tdsr_apache2_hr_max",' .
-            '"tdsr_apache2_rr_min","tdsr_apache2_rr_max",' .
-            '"tdsr_apache2_gcs_min","tdsr_apache2_gcs_max",' .
-            '"tdsr_apache2_fio2_max",' .
-            '"tdsr_apache2_na_min","tdsr_apache2_na_max",' .
-            '"tdsr_apache2_k_min","tdsr_apache2_k_max",' .
-            '"tdsr_apache2_cr_min","tdsr_apache2_cr_max",' .
-            '"tdsr_apache2_hct_min","tdsr_apache2_hct_max",' .
-            '"tdsr_apache2_pha_min","tdsr_apache2_pha_max",' .
-            '"tdsr_apache2_pao2_min","tdsr_apache2_pao2_max",' .
-            '"tdsr_apache2_wbc_min","tdsr_apache2_wbc_max"';
-        while($flowlab_lines[0] !== $header) {
-            array_shift($flowlab_lines);
+        $flowlab_lines = $this->removeHeaders($flowlab_csv);
+        if($flowlab_lines === false) {
+            return false;
         }
-        array_shift($flowlab_lines);
 
         $flowlab_results = array();
         foreach($flowlab_lines as $line) {
@@ -87,6 +93,7 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
 
     /**
      * parses data retrieved via REDCap to STARR Link query 'apache2_aao2'
+     * uses helper function removeHeaders();
      * @param $aao2_csv
      * @return array[
      *          'fio2' => array[
@@ -101,20 +108,20 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
      *                       'id',
      *                       'dttm',
      *                       'value']
-     *              ]
+     *              ]|false
      */
-    public function parseAao2CSV($aao2_csv) {
-        $fio2  = [];
-        $pao2  = [];
+    public function parseAao2CSV($aao2_csv)
+    {
+        $aao2_lines = $this->removeHeaders($aao2_csv);
+        if($aao2_lines === false) {
+            return false;
+        }
+
+        $fio2 = [];
+        $pao2 = [];
         $paco2 = [];
 
-        $response_arr = str_getcsv($aao2_csv, PHP_EOL);
-        while($response_arr[0] !== 'redcap_record_id,"type","dttm","value"') {
-            array_shift($response_arr);
-        }
-        array_shift($response_arr);
-
-        foreach($response_arr as $line) {
+        foreach($aao2_lines as $line) {
             $result = str_getcsv($line, ',');
             $type = $result[1];
             $recording = array(

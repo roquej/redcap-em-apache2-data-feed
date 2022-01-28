@@ -49,6 +49,9 @@ Project-level REDCap to STARR Link specifics:
 The results of the APACHE II Data Feed EM data querying/processing are mapped to fields with a `tdsr_apache2` prefix.
 REDCap projects need this EM's provided data dictionary to be added to their own project's data dictionary in order to work.
 
+The data dictionary includes calculated fields that generate the actual APACHE II scoring.
+The calculated fields rely on the actual parameter values fetched by this EM and required manual phenotyping (i.e., APACHE II parameters that aren't automated by this EM).
+
 ## How to install and set up in local development environment
 Place a copy of the EM into your local REDCap server's directory for external modules.
 Make sure the folder's name ends with a '_v9.9.9' suffix (e.g., `apache2-data-feed_v9.9.9`).
