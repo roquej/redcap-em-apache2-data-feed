@@ -26,28 +26,36 @@ A data use agreement (attestation?) should be submitted for each project that us
 ### User document
 Researchers can refer to this user document for guidance on this APACHE II Data Feed EM, hosted on Google Drive:
 
-[APACHE II Data Feed EM Installation/Configuration Instructions for Researchers](https://www.example.com)
+[APACHE II Data Feed EM Installation/Configuration Instructions for Researchers]()
 
 ## Dependencies
 ### REDCap to STARR Link EM and queries to store
 REDCap to STARR Link and its dependencies must be installed and configured to the project.
 Refer to [DOCUMENT HERE]() for general guidance.
 
+System-level REDCap to STARR Link specifics:
+- Since the APACHE II Data Feed EM requires streaming data, in REDCap to STARR Link's system-level config enter '443' as the 'Starr server port number'.
+
 Project-level REDCap to STARR Link specifics:
-1. REDCap to STARR Link should be configured to sync with REDCap as the source:
-   1. The STARR Identifier field should be configured to a field containing MRN.
-   2. Date field `dt1` should be configured to enrollment date should be configured.
-2. The APACHE II Data Feed EM requires calling the REDCap to STARR Link API using these queries:
-   1. `apache2_flowlabs`
-   2. `apache2_aao2`
-   3. Copies of these queries are in the `/REDCaptoSTARRLinkSQL` folder.
+- REDCap to STARR Link should be configured to sync with REDCap as the source:
+  - The STARR Identifier field should be configured to a field containing MRN.
+  - Date field `dt1` should be configured to enrollment date should be configured.
+- The APACHE II Data Feed EM requires calling the REDCap to STARR Link API using these queries:
+  - `apache2_flowlabs`
+  - `apache2_aao2`
+  - Copies of these queries are in the `/REDCaptoSTARRLinkSQL` folder.
 
 ### REDCap Data Dictionary for APACHE II Data Feed EM
 The results of the APACHE II Data Feed EM data querying/processing are mapped to fields with a `tdsr_apache2` prefix.
-REDCap projects need this EM's provided data dictionary to be merged with their own projects in order to work.
-
+REDCap projects need this EM's provided data dictionary to be added to their own project's data dictionary in order to work.
 
 ## How to install and set up in local development environment
+Place a copy of the EM into your local REDCap server's directory for external modules.
+Make sure the folder's name ends with a '_v9.9.9' suffix (e.g., `apache2-data-feed_v9.9.9`).
 
+### System-Level Configuration
+No system-level configuration is necessary.
 
+### Project-Level Configuration
+No project-level configuration is necessary. However, it is helpful to enable emLogger.
 
