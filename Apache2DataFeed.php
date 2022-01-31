@@ -32,8 +32,8 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         while(substr($results_arr[0], 0, 16) !== "redcap_record_id" && count($results_arr) > 1) {
             array_shift($results_arr);
         }
-        // return false in case while loop exited due to no header match (or header is only element left)
-        if(count($results_arr) === 1) {
+        // if while loop exited due to no header match
+        if(count($results_arr) === 1 && substr($results_arr[0], 0, 16) !== "redcap_record_id") {
             return false;
         }
         array_shift($results_arr);
