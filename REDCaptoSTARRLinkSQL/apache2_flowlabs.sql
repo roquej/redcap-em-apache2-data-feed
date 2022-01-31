@@ -46,7 +46,7 @@ WITH
             adt.event_time AS event_time,
             enc.arrival_time as arrival_time,
             enc.discharge_time as discharge_time,
-        FROM `som-rit-phi-starr-prod.shc_clarity_latest.clarity_adt` AS adt
+        FROM `som-rit-phi-starr-prod.shc_clarity_filtered_latest.clarity_adt` AS adt
         INNER JOIN encounter AS enc
             ON adt.pat_enc_csn_id = enc.pat_enc_csn_id
         WHERE pat_lvl_of_care_c = '8'
