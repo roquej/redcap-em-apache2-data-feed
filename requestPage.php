@@ -38,6 +38,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $success_exit = "Data was successfully retrieved and saved to your REDCap project.";
     $failure_exit = "ERROR- Data feed failed to retrieve and save data.";
+    $no_data = "The data feed was successfully completed, but there was no retrievable data to save.";
 
     // instantiate REDCap to STARR Link
     $rtsl = \ExternalModules\ExternalModules::getModuleInstance('redcap_to_starr_link');
@@ -50,21 +51,21 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // query and save parameters via REDCap to STARR Link, excluding A-a Gradient scores
     $flowlab_csv = $rtsl->streamData($pid, 'apache2_flowlabs', 1, array());
-    $module->emDebug($flowlab_csv);
+    $module->emDebug("Results of RtSL query 'apache2_flowlabs' via streamData(): " . $flowlab_csv);
     if($flowlab_csv === false) {
         $module->emError("rtsl->streamData() failed to retrieve data for query 'apache2_flowlabs'");
         exit($failure_exit);
     }
-    $module->emDebug("Results of RtSL query 'apache2_flowlabs' via streamData(): " . $flowlab_csv);
     $flowlab_results = $module->parseFlowLabCSV($flowlab_csv);
     if($flowlab_results === false) {
         $module->emError("removeHeaders() in parseFlowLabCSV() failed to remove headers from data streamed");
         exit($failure_exit);
     }
-    $flowlab_save_response = $module->saveResults($flowlab_results);
+    $module->emDebug("Attempting to save flowsheet/lab data to REDCap.");
+    $flowlab_save_response = REDCap::saveData('json', json_encode($flowlab_results), 'overwrite');
+    $module->emDebug($flowlab_save_response);
     if(!empty($flowlab_save_response["errors"])) {
-        $module->emError("Failed to save to REDCap: " . $flowlab_results);
-        $module->emError("Response when attempted to save: " . $flowlab_save_response);
+        $module->emError("Failed to save flowsheet/lab data to REDCap.");
         exit($failure_exit);
     }
 
@@ -74,7 +75,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
         $module->emError("rtsl->streamData() failed to retrieve data for query 'apache2_aao2'");
         exit($failure_exit);
     }
-    $module->emDebug("Results of RtSL query 'apace2_aao2' via streamData(): " . $aao2_csv);
+    $module->emDebug("Results of RtSL query 'apache2_aao2' via streamData(): " . $aao2_csv);
     $aao2_data = $module->parseAao2CSV($aao2_csv);
     if($aao2_data === false) {
         $module->emError("removeHeaders() in parseAao2CSV() failed to remove headers from data streamed");
@@ -89,13 +90,16 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
                                            $aao2_data['pao2'],
                                            $aao2_data['paco2'],
                                            $aao2_data['fio2']);
-    $aao2_save_response = $module->saveResults($aao2_results);
+    $module->emDebug("Attempting to save A-a gradient data to REDCap.");
+    $aao2_save_response = REDCap::saveData('json', json_encode($aao2_results), 'overwrite');
+    $module->emDebug($aao2_save_response);
     if(!empty($aao2_save_response["errors"])) {
-        $module->emError("Failed to save to REDCap: " . $aao2_results);
-        $module->emError("Response when attempted to save: " . $aao2_save_response);
+        $module->emError("Failed to save A-a gradient data to REDCap.");
         exit($failure_exit);
     }
-
+    if($flowlab_save_response["item_count"] === 0 && $aao2_save_response["item_count"] === 0) {
+        exit($no_data);
+    }
     exit($success_exit);
 }
 
@@ -107,7 +111,6 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php'; // maintain sidebar
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script>
         <title>APACHE II Data Feed EM</title>
     </head>
     <body>
@@ -120,13 +123,14 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php'; // maintain sidebar
             <li>History of Severe Organ Insufficiency or Immunocompromised</li>
             <li>Acute Renal Failure</li>
         </ul>
-
         <?php
-        if (hasFields() === TRUE) { ?>
+        if (hasFields() === true) { ?>
             <div>
                 <p>Hit the 'Get Data' button below to run the data feed:</p>
-                <button id="submit">Get Data</button>
-                <div id="submit-message"></div>
+                <button id="apache2-submit">Get Data</button>
+                <hr>
+                <div id="apache2-submit-message"></div>
+                <small><div id="apache2-submit-timestamp"></div></small>
             </div>
         <?php
         } else {
@@ -152,11 +156,16 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php'; // maintain sidebar
         ?>
 
         <script>
-            $("#submit").click(function() {
-                $("#submit-message").html("Running the data feed...");
-                $.post("", function(data) {
+            $("#apache2-submit").click(function() {
+                $("#apache2-submit").prop("disabled", true);
+                $("#apache2-submit-message").html("Running the data feed...");
+                $("#apache2-submit-timestamp").html(new Date($.now()));
+
+                $.post('<?php echo $module->getUrl("requestPage.php", false, true); ?>', {}, function(data) {
+                    $("#apache2-submit").prop("disabled", false);
                     console.log(data);
-                    $("#submit-message").html(data);
+                    $("#apache2-submit-message").html(data);
+                    $("#apache2-submit-timestamp").html(new Date($.now()));
                 });
             });
         </script>

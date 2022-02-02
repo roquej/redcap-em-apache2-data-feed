@@ -3,7 +3,6 @@ namespace Stanford\Apache2DataFeed;
 require_once "emLoggerTrait.php";
 use REDCap;
 
-
 /**
  * Class Apache2DataFeed
  * @package Stanford\Apache2DataFeed
@@ -294,25 +293,24 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
                 'tdsr_apache2_aao2_max' => strval($aao2_max)
             );
         }
-        $this->emDebug("Results of A-a Gradient calculations: " . $aao2_minmax);
+        $this->emDebug($aao2_minmax);
         return $aao2_minmax;
     }
 
     /**
      * Save data back to REDCap
      * @param $data
-     * @return mixed
+     * @return array|false
      */
     public function saveResults($data) {
-        $params = array(
-            'project_id' => $pid,
-            'dataFormat' => 'json',
-            'type' => 'flat',
-            'data' => json_encode($data),
-            'overwriteBehavior' => 'overwrite'
-        );
-        $response = REDCap::saveData($params);
-        $this->emDebug($response);
-        return $response;
+        $return = REDCap::saveData('json', json_encode($data), 'overwrite');
+        if (!empty($return['errors'])) {
+            $this->emError("Errors when saving status of inactive STARR records for project $this->project_id. Message: " . $return['errors']);
+            return false;
+        } else {
+            $this->emDebug("Record(s) updated: " . json_encode($return));
+        }
+        return $return;
+
     }
 }
