@@ -158,21 +158,6 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
     }
 
     /**
-     * returns the project's REDCap record IDs
-     * @return mixed
-     */
-    public function getRecords() {
-        $params = array(
-            'project_id' => $pid,
-            'return_format' => 'json',
-            'fields' => array('record_id')
-        );
-        $records = REDCap::getData($params);
-        $this->emDebug("List of records retrieved: " . $records);
-        return $records;
-    }
-
-    /**
      * Returns most prior value of PaCO2 up to the date-time as set by $pao2_dttm
      * Returns '-99' if there's no possible PaCO2 value
      * @param $pao2_dttm
@@ -295,22 +280,5 @@ class Apache2DataFeed extends \ExternalModules\AbstractExternalModule {
         }
         $this->emDebug($aao2_minmax);
         return $aao2_minmax;
-    }
-
-    /**
-     * Save data back to REDCap
-     * @param $data
-     * @return array|false
-     */
-    public function saveResults($data) {
-        $return = REDCap::saveData('json', json_encode($data), 'overwrite');
-        if (!empty($return['errors'])) {
-            $this->emError("Errors when saving status of inactive STARR records for project $this->project_id. Message: " . $return['errors']);
-            return false;
-        } else {
-            $this->emDebug("Record(s) updated: " . json_encode($return));
-        }
-        return $return;
-
     }
 }

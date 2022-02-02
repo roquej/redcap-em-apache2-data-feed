@@ -81,7 +81,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
         $module->emError("removeHeaders() in parseAao2CSV() failed to remove headers from data streamed");
         exit($failure_exit);
     }
-    $records = $module->getRecords();
+    // $records = $module->getRecords();
+    $module->emDebug("Attempting to retrieve project record IDs.");
+    $records = REDCap::getData(array('return_format' => 'json', 'fields' => array('record_id')));
+    $module->emDebug("List of records retrieved: " . $records);
     if(is_null($records)) {
         $module->emError("Failed to retrieve list of projects record IDs for A-a Gradient calculations");
         exit($failure_exit);
