@@ -38,7 +38,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $success_exit = "Data was successfully retrieved and saved to your REDCap project.";
     $failure_exit = "ERROR- Data feed failed to retrieve and save data.";
-    $no_data = "The data feed was successfully completed, but there was no retrievable data to save.";
+    $no_new_data = "The data feed was successfully completed, but there was either no retrievable data to save or no changes to save in REDCap." ;
 
     // instantiate REDCap to STARR Link
     $rtsl = \ExternalModules\ExternalModules::getModuleInstance('redcap_to_starr_link');
@@ -101,7 +101,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
         exit($failure_exit);
     }
     if($flowlab_save_response["item_count"] === 0 && $aao2_save_response["item_count"] === 0) {
-        exit($no_data);
+        exit($no_new_data);
     }
     exit($success_exit);
 }
