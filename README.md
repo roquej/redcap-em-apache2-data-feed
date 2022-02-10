@@ -53,7 +53,7 @@ The data dictionary includes calculated fields that generate the actual APACHE I
 The calculated fields rely on the actual parameter values fetched by this EM and required manual phenotyping (i.e., APACHE II parameters that aren't automated by this EM).
 
 ## How to install and set up in local development environment
-Ensure that you are running on REDCap ____ and PHP ____.
+Ensure that you are running on REDCap 12.0.4 and PHP 7.3.
 
 Place a copy of the EM into your local REDCap server's directory for external modules.
 Make sure the folder's name ends with a '_v9.9.9' suffix (e.g., `apache2-data-feed_v9.9.9`).
