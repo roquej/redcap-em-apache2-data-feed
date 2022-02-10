@@ -21,17 +21,16 @@ Also, this EM currently only works with REDCap projects with a non-longitudinal,
 
 ## For researchers (end users)
 ### IRB requirements
-A data use agreement (attestation?) should be submitted for each project that uses this EM.
+A data use agreement should be submitted for each project that uses this EM.
 
 ### User document
 Researchers can refer to this user document for guidance on this APACHE II Data Feed EM, hosted on Google Drive:
 
-[APACHE II Data Feed EM Installation/Configuration Instructions for Researchers]()
+[APACHE II Data Feed EM Installation/Configuration Instructions for Researchers](https://docs.google.com/document/d/1YUsFBN3NEbgck5OfqtB3RusDTaHzSOkvqVWRKUj7d84/edit?usp=sharing)
 
 ## Dependencies
 ### REDCap to STARR Link EM and queries to store
 REDCap to STARR Link and its dependencies must be installed and configured to the project.
-Refer to [DOCUMENT HERE]() for general guidance.
 
 System-level REDCap to STARR Link specifics:
 - Since the APACHE II Data Feed EM requires streaming data, in REDCap to STARR Link's system-level config enter '443' as the 'Starr server port number'.
