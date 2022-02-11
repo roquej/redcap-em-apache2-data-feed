@@ -1,9 +1,11 @@
 <?php
 namespace Stanford\Apache2DataFeed;
-require_once "emLoggerTrait.php";
-use REDCap;
+/** @var $module Apache2DataFeed */
 
-global $module;
+// require_once "emLoggerTrait.php";
+
+use REDCap;
+// global $module;
 
 /**
  * checks if REDCap project has the necessary field names for the data feed to save to
@@ -54,6 +56,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
     $rtsl = \ExternalModules\ExternalModules::getModuleInstance('redcap_to_starr_link');
 
     // sync records via REDCap to STARR Link
+    $pid = $module->getProjectId();
     if($rtsl->syncRecords($pid) === false) {
         $module->emError("rtsl->syncRecords() failed to sync records on Project " . $pid);
         exit_process($failure_exit);
