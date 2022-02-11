@@ -2,10 +2,7 @@
 namespace Stanford\Apache2DataFeed;
 /** @var $module Apache2DataFeed */
 
-// require_once "emLoggerTrait.php";
-
 use REDCap;
-// global $module;
 
 /**
  * checks if REDCap project has the necessary field names for the data feed to save to

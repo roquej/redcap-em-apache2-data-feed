@@ -21,7 +21,7 @@ Also, this EM currently only works with REDCap projects with a non-longitudinal,
 
 ## For researchers (end users)
 ### IRB requirements
-A data use agreement should be submitted for each project that uses this EM.
+Any REDCap project that uses this external module must have a valid IRB.
 
 ### User document
 Researchers can refer to this user document for guidance on this APACHE II Data Feed EM, hosted on Google Drive:
