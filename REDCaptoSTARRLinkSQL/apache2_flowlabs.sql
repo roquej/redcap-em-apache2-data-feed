@@ -2,63 +2,112 @@ WITH
     pat_map AS
         (
         SELECT
-            *,
+            rsr.redcap_record_id AS redcap_record_id,
             DATE(rsr.dt1) AS enroll_date,
+            pat_map.mrn AS mrn,
+            pat_map.pat_map_id AS pat_map_id,
+            pat_map.pat_name AS pat_name,
+            pat_map.first_name AS first_name,
+            pat_map.last_name AS last_name,
+            pat_map.birth_date AS birth_date
         FROM `som-rit-phi-starr-tools-prod.stride.pat_map` AS pat_map
-        JOIN EXTERNAL_QUERY('us.starrapi',
-        '''select
-                r.starr_record_id as starr_record_id,
-                r.redcap_record_id as redcap_record_id,
-                qp.dt1 as dt1
-            from REDCAP_STARR_RECORD as r
-            join REDCAP_STARR_QUERY_PARAMS as qp
-              on r.redcap_record_id = qp.redcap_record_id
-            where r.link_id = ? and r.status_code = 'A' ''') AS rsr
-            ON pat_map.mrn = rsr.starr_record_id
+            RIGHT JOIN EXTERNAL_QUERY('us.starrapi',
+                '''select
+                        r.starr_record_id as starr_record_id,
+                        r.redcap_record_id as redcap_record_id,
+                        qp.dt1 as dt1
+                    from REDCAP_STARR_RECORD as r
+                    join REDCAP_STARR_QUERY_PARAMS as qp
+                      on r.redcap_record_id = qp.redcap_record_id
+                    where r.link_id = ? and r.status_code = 'A' and qp.link_id = ? ''') AS rsr
+                ON pat_map.mrn = rsr.starr_record_id
         ),
     encounter AS
         (
         SELECT
+            pat_map.redcap_record_id AS redcap_record_id,
+            pat_map.mrn AS mrn,
             enc.pat_map_id AS pat_map_id,
             enc.pat_enc_csn_id AS pat_enc_csn_id,
             pat_map.birth_date AS birth_date,
             pat_map.enroll_date AS enroll_date,
-            enc.adt_arrival_time AS arrival_time,
-            enc.hosp_dischrg_time AS discharge_time,
+            CASE
+                WHEN enc.adt_arrival_time IS NULL THEN enc.hosp_admsn_time
+                WHEN DATETIME_DIFF(DATETIME(enc.adt_arrival_time), DATETIME(enc.hosp_admsn_time), SECOND) < 0 THEN enc.adt_arrival_time
+                ELSE enc.hosp_admsn_time
+            END
+            AS earliest_time,
+            enc.hosp_admsn_time AS hosp_admsn_time,
+            enc.adt_arrival_time AS adt_arrival_time,
+            enc.hosp_dischrg_time AS discharge_time
         FROM `som-rit-phi-starr-tools-prod.stride.shc_encounter` AS enc
-        INNER JOIN pat_map AS pat_map
-            ON enc.pat_map_id = pat_map.pat_map_id
+            LEFT JOIN pat_map AS pat_map
+        ON enc.pat_map_id = pat_map.pat_map_id
         WHERE
             enc_type = 'Hospital Encounter'
-            AND pt_class = 'Inpatient'
-            AND hosp_admsn_time IS NOT NULL
-            AND hosp_dischrg_time IS NOT NULL
-            AND SAFE.DATE_DIFF(DATE(enroll_date), DATE(adt_arrival_time), DAY) >= 0
-            AND SAFE.DATE_DIFF(DATE(enroll_date), DATE(hosp_dischrg_time), DAY) <= 0
+          AND pt_class IN ('Emergency Services', 'Observation', 'Inpatient')
+          AND appt_type IN ('Admission (Admission)', 'Admission (Discharged)')
+          AND hosp_admsn_time IS NOT NULL
+          AND hosp_dischrg_time IS NOT NULL
+          AND
+            (
+            SAFE.DATE_DIFF(DATE(enroll_date), DATE(adt_arrival_time), DAY) >= 0
+           OR
+            SAFE.DATE_DIFF(DATE(enroll_date), DATE(hosp_admsn_time), DAY) >= 0
+            )
+          AND SAFE.DATE_DIFF(DATE(enroll_date), DATE(hosp_dischrg_time), DAY) <= 0
+        ),
+    adt AS
+        (
+        SELECT
+            enc.redcap_record_id AS redcap_record_id,
+            enc.pat_map_id AS pat_map_id,
+            clarity_adt.pat_enc_csn_id AS pat_enc_csn_id,
+            clarity_adt.event_time AS event_time,
+            clarity_adt.pat_lvl_of_care_c AS level_of_care
+        FROM `som-rit-phi-starr-prod.shc_clarity_filtered_latest.clarity_adt` AS clarity_adt
+            INNER JOIN encounter AS enc
+        ON clarity_adt.pat_enc_csn_id = enc.pat_enc_csn_id
+        ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC), event_time ASC
+            ),
+        adt_physical AS
+        (
+        SELECT
+            enc.redcap_record_id AS redcap_record_id,
+            enc.pat_map_id AS pat_map_id,
+            shc_adt.pat_enc_csn_id AS pat_enc_csn_id,
+            shc_adt.event_time AS event_time,
+            CASE
+                WHEN
+                department_name IN ('D2ICU-SURGE', 'E2-ICU', 'E29-ICU', 'J4', 'K4', 'L4', 'M4', 'VCP CCU 1', 'VCP CCU 2', 'VC CRITICAL CARE SPECIALTY', 'VCP SURGE PACU')
+                OR pat_service IN ('Critical Care', 'Neurocritical Care', 'Cardiovascular ICU', 'Emergency Critical Care')
+                OR pat_lv_of_care = 'Critical Care'
+                THEN '8'
+                ELSE '99'
+            END
+            AS level_of_care
+        FROM `som-rit-phi-starr-tools-prod.stride.shc_adt` AS shc_adt
+        INNER JOIN encounter AS enc
+            ON shc_adt.pat_enc_csn_id = enc.pat_enc_csn_id
+        ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC), event_time ASC
         ),
     adt_icu AS
         (
-        SELECT
-            enc.pat_map_id AS pat_map_id,
-            enc.birth_date AS birth_date,
-            enc.pat_enc_csn_id AS pat_enc_csn_id,
-            adt.pat_lvl_of_care_c AS pat_lvl_of_care_c,
-            adt.event_time AS event_time,
-            enc.arrival_time as arrival_time,
-            enc.discharge_time as discharge_time,
-        FROM `som-rit-phi-starr-prod.shc_clarity_filtered_latest.clarity_adt` AS adt
-        INNER JOIN encounter AS enc
-            ON adt.pat_enc_csn_id = enc.pat_enc_csn_id
-        WHERE pat_lvl_of_care_c = '8'
+        SELECT * FROM adt WHERE level_of_care = '8'
+        UNION DISTINCT
+        SELECT * FROM adt_physical WHERE level_of_care = '8'
+        ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC)
         ),
     icu_admit AS
         (
         SELECT
+            adt_icu.redcap_record_id AS redcap_record_id,
             adt_icu.pat_map_id AS pat_map_id,
             adt_icu.pat_enc_csn_id AS pat_enc_csn_id,
             MIN(event_time) AS icu_admit_dttm,
         FROM adt_icu
-        GROUP BY pat_enc_csn_id, pat_map_id, birth_date
+        GROUP BY redcap_record_id, pat_enc_csn_id, pat_map_id
+        ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC)
         ),
     icu_age AS
         (
@@ -68,12 +117,15 @@ WITH
             SAFE.DATE_DIFF(SAFE.DATE(icu_admit.icu_admit_dttm), SAFE.DATE(pat_map.birth_date), YEAR) AS age,
         FROM pat_map AS pat_map
         INNER JOIN icu_admit AS icu_admit
-            ON pat_map.pat_map_id = icu_admit.pat_map_id
+            ON pat_map.redcap_record_id = icu_admit.redcap_record_id
+        ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC)
         ),
     fio2 AS
         (
         SELECT
+            icu_admit.redcap_record_id AS redcap_record_id,
             icu_admit.pat_map_id AS pat_map_id,
+            icu_admit.pat_enc_csn_id AS pat_enc_csn_id,
             flow.meas_value AS meas_value,
             flow.row_disp_name AS row_disp_name,
             CASE
@@ -94,19 +146,20 @@ WITH
     fio2_max AS
         (
         SELECT
-            pat_map_id,
+            redcap_record_id,
             MAX(CASE WHEN fio2.row_disp_name IN ('FiO2 (%)', 'O2 % Concentration') THEN SAFE_CAST(fio2.value AS DECIMAL) END) apache2_fio2_max
         FROM fio2
-        GROUP BY pat_map_id
+        GROUP BY redcap_record_id
         ),
     vitals AS
         (
         SELECT
-            flow.pat_map_id AS pat_map_id,
+            icu_admit.redcap_record_id AS redcap_record_id,
+            icu_admit.pat_map_id AS pat_map_id,
+            icu_admit.pat_enc_csn_id AS pat_enc_csn_id,
             flow.row_disp_name AS row_disp_name,
             flow.meas_value AS meas_value
-        FROM
-            `som-rit-phi-starr-tools-prod.stride.rit_flowsheet` AS flow
+        FROM `som-rit-phi-starr-tools-prod.stride.rit_flowsheet` AS flow
         INNER JOIN icu_admit AS icu_admit
             ON flow.pat_map_id = icu_admit.pat_map_id
         WHERE
@@ -118,15 +171,17 @@ WITH
                 'Resp',                              	                                -- respiratory rate
                 'Glasgow Coma Scale Score', 'GCS', 'GCS Score'                          -- GCS
                 )
-            AND SAFE.DATE_DIFF(flow.recorded_time, icu_admit.icu_admit_dttm, SECOND) >= 0
-            AND SAFE.DATE_DIFF(flow.recorded_time, DATETIME_ADD(icu_admit.icu_admit_dttm, INTERVAL 24 HOUR), SECOND) <= 0
-            AND SAFE_CAST(flow.meas_value AS DECIMAL) IS NOT NULL -- checks if meas_value column contains a number
-                                                                  -- instead of dropping nonnumeric meas_value rows, consider using regex instead
+          AND SAFE.DATE_DIFF(flow.recorded_time, icu_admit.icu_admit_dttm, SECOND) >= 0
+          AND SAFE.DATE_DIFF(flow.recorded_time, DATETIME_ADD(icu_admit.icu_admit_dttm, INTERVAL 24 HOUR), SECOND) <= 0
+          AND SAFE_CAST(flow.meas_value AS DECIMAL) >= 0
+          AND SAFE_CAST(flow.meas_value AS DECIMAL) < 9999999
+          AND SAFE_CAST(flow.meas_value AS DECIMAL) IS NOT NULL -- checks if meas_value column contains a number
+                                                                -- instead of dropping nonnumeric meas_value rows, consider using regex instead
         ),
     vitals_minmax AS
         (
         SELECT
-            vitals.pat_map_id AS pat_map_id,
+            vitals.redcap_record_id AS redcap_record_id,
             MIN(CASE WHEN vitals.row_disp_name IN ('Temp (in Celsius)') THEN SAFE_CAST(vitals.meas_value AS DECIMAL) END) apache2_temp_min,
             MAX(CASE WHEN vitals.row_disp_name IN ('Temp (in Celsius)') THEN SAFE_CAST(vitals.meas_value AS DECIMAL) END) apache2_temp_max,
             MIN(CASE WHEN vitals.row_disp_name IN ('MAP', 'Mean Arterial Pressure', 'Mean Arterial Pressure (Calculated)') THEN SAFE_CAST(vitals.meas_value AS DECIMAL) END) apache2_map_min,
@@ -138,12 +193,14 @@ WITH
             MIN(CASE WHEN vitals.row_disp_name IN ('Glasgow Coma Scale Score', 'GCS', 'GCS Score') THEN SAFE_CAST(vitals.meas_value AS DECIMAL) END) apache2_gcs_min,
             MAX(CASE WHEN vitals.row_disp_name IN ('Glasgow Coma Scale Score', 'GCS', 'GCS Score') THEN SAFE_CAST(vitals.meas_value AS DECIMAL) END) apache2_gcs_max
         FROM vitals AS vitals
-        GROUP BY pat_map_id
+        GROUP BY redcap_record_id
         ),
     labs AS
         (
         SELECT
-            labs.pat_map_id AS pat_map_id,
+            icu_admit.redcap_record_id AS redcap_record_id,
+            icu_admit.pat_map_id AS pat_map_id,
+            icu_admit.pat_enc_csn_id AS pat_enc_csn_id,
             labs.group_lab_name AS group_lab_name,
             labs.lab_name AS lab_name,
             labs.base_name AS base_name,
@@ -193,51 +250,51 @@ WITH
                                  'WBC count')
                     AND
                     group_lab_name IN('WBC (MANUAL ENTRY)',
-                                      'CBC WITH DIFFERENTIAL/PLATELET (LABCORP)',
-                                      'CBC, NO DIFFERENTIAL/PLATELET(LABCORP)',
-                                      'CBC',
-                                      'CBC with Differential',
-                                      'CBC w/DIFF & Slide Review (QUE)',
-                                      'CBC in AM',
-                                      'CBC WITH DIFF',
-                                      'CBC With Diff',
-                                      'CBC WITH DIFF AND SLIDE REVIEW',
-                                      'CBC With Diff And Slide Review',
-                                      'CBC with Diff',
-                                      'WBC',
-                                      'Complete Blood Count with Differential (Whole Blood)',
-                                      'AUTOMATED BLOOD COUNT',
-                                      'CBC With Diff  (MMC Protocol)',
-                                      'CBC with diff',
-                                      'CBC With Diff in AM',
-                                      'CBC with Diff and Slide Review',
-                                      'CBC: Evening of surgery',
-                                      'CBC: POD # 1',
-                                      'CBC (MENLO)',
-                                      'AUTOMATED BLOOD COUNT (MENLO)',
-                                      'CBC WITH MANUAL DIFF (MENLO)',
-                                      'CBC (LABCBCO)',
-                                      'CBC w/o Diff',
-                                      'CBC With Diff (in purple top tube for special hematology)',
-                                      'CBC w/Diff (QUE)',
-                                      'CBC w/Diff & Slide Review (LC)',
-                                      'Complete Blood Count with Differential & Slide Review (Whole Blood)',
-                                      'CBC With Diff (LABCBCD)',
-                                      'CBC WITH DIFF IN 1 MONTH',
-                                      'Complete Blood Count (Whole Blood)',
-                                      'CBC w/o diff',
-                                      'CBC W/O Diff',
-                                      'CBC IN 6 MONTHS',
-                                      'CBC- Evening of Surgery',
-                                      'CBC POD #1',
-                                      'CBC IN 3 MONTHS',
-                                      'CBC WITH DIFF IN 6 MONTHS',
-                                      'CBC (INCLUDES DIFF/PLT)',
-                                      'CBC  [LABCBCO]',
-                                      'CBC With Diff  [LABCBCD]',
-                                      'CBC  [LABCBCO]  Stanford Drawn',
-                                      'CBC/DIFF AMBIGUOUS DEFAULT(977709)',
-                                      'CBC w/Diff  (LC)')
+                                     'CBC WITH DIFFERENTIAL/PLATELET (LABCORP)',
+                                     'CBC, NO DIFFERENTIAL/PLATELET(LABCORP)',
+                                     'CBC',
+                                     'CBC with Differential',
+                                     'CBC w/DIFF & Slide Review (QUE)',
+                                     'CBC in AM',
+                                     'CBC WITH DIFF',
+                                     'CBC With Diff',
+                                     'CBC WITH DIFF AND SLIDE REVIEW',
+                                     'CBC With Diff And Slide Review',
+                                     'CBC with Diff',
+                                     'WBC',
+                                     'Complete Blood Count with Differential (Whole Blood)',
+                                     'AUTOMATED BLOOD COUNT',
+                                     'CBC With Diff  (MMC Protocol)',
+                                     'CBC with diff',
+                                     'CBC With Diff in AM',
+                                     'CBC with Diff and Slide Review',
+                                     'CBC: Evening of surgery',
+                                     'CBC: POD # 1',
+                                     'CBC (MENLO)',
+                                     'AUTOMATED BLOOD COUNT (MENLO)',
+                                     'CBC WITH MANUAL DIFF (MENLO)',
+                                     'CBC (LABCBCO)',
+                                     'CBC w/o Diff',
+                                     'CBC With Diff (in purple top tube for special hematology)',
+                                     'CBC w/Diff (QUE)',
+                                     'CBC w/Diff & Slide Review (LC)',
+                                     'Complete Blood Count with Differential & Slide Review (Whole Blood)',
+                                     'CBC With Diff (LABCBCD)',
+                                     'CBC WITH DIFF IN 1 MONTH',
+                                     'Complete Blood Count (Whole Blood)',
+                                     'CBC w/o diff',
+                                     'CBC W/O Diff',
+                                     'CBC IN 6 MONTHS',
+                                     'CBC- Evening of Surgery',
+                                     'CBC POD #1',
+                                     'CBC IN 3 MONTHS',
+                                     'CBC WITH DIFF IN 6 MONTHS',
+                                     'CBC (INCLUDES DIFF/PLT)',
+                                     'CBC  [LABCBCO]',
+                                     'CBC With Diff  [LABCBCD]',
+                                     'CBC  [LABCBCO]  Stanford Drawn',
+                                     'CBC/DIFF AMBIGUOUS DEFAULT(977709)',
+                                     'CBC w/Diff  (LC)')
                     THEN 'WBC'
             END
             AS lab
@@ -285,16 +342,14 @@ WITH
                         )
             OR
             (
-             base_name = 'WBC'
-             AND
-             lab_name IN (
-                         'WBC Count',
-                         'WBC',
-                         'WBC (Manual Entry) See EMR for details',
-                         'WBC count'
-                         )
-             AND
-             group_lab_name IN (
+            base_name = 'WBC'
+            AND lab_name IN (
+                            'WBC Count',
+                            'WBC',
+                            'WBC (Manual Entry) See EMR for details',
+                            'WBC count'
+                            )
+            AND group_lab_name IN (
                                 'WBC (MANUAL ENTRY)',
                                 'CBC WITH DIFFERENTIAL/PLATELET (LABCORP)',
                                 'CBC, NO DIFFERENTIAL/PLATELET(LABCORP)',
@@ -346,13 +401,14 @@ WITH
             )
             AND SAFE.DATE_DIFF(labs.taken_time, icu_admit.icu_admit_dttm, SECOND) >= 0
             AND SAFE.DATE_DIFF(labs.taken_time, DATETIME_ADD(icu_admit.icu_admit_dttm, INTERVAL 24 HOUR), SECOND) <= 0
+            AND SAFE_CAST(labs.ord_num_value AS DECIMAL) < 9999999
             AND SAFE_CAST(labs.ord_num_value AS DECIMAL) IS NOT NULL -- checks if ord_num_value column is numeric
                                                                      -- instead of dropping nonnumeric ord_num_value rows, consider using regex instead
         ),
     labs_minmax AS
         (
         SELECT
-            labs.pat_map_id AS pat_map_id,
+            labs.redcap_record_id AS redcap_record_id,
             MIN(CASE WHEN labs.lab = 'Na' THEN SAFE_CAST(labs.ord_num_value AS DECIMAL) END) apache2_na_min,
             MAX(CASE WHEN labs.lab = 'Na' THEN SAFE_CAST(labs.ord_num_value AS DECIMAL) END) apache2_na_max,
             MIN(CASE WHEN labs.lab = 'K' THEN SAFE_CAST(labs.ord_num_value AS DECIMAL) END) apache2_k_min,
@@ -368,7 +424,7 @@ WITH
             MIN(CASE WHEN labs.lab = 'WBC' THEN SAFE_CAST(labs.ord_num_value AS DECIMAL) END) apache2_wbc_min,
             MAX(CASE WHEN labs.lab = 'WBC' THEN SAFE_CAST(labs.ord_num_value AS DECIMAL) END) apache2_wbc_max,
         FROM labs AS labs
-        GROUP BY pat_map_id
+        GROUP BY redcap_record_id
         ),
     apache2_all AS
         (
@@ -401,15 +457,14 @@ WITH
             labs_minmax.apache2_pao2_max AS tdsr_apache2_pao2_max,
             labs_minmax.apache2_wbc_min AS tdsr_apache2_wbc_min,
             labs_minmax.apache2_wbc_max AS tdsr_apache2_wbc_max
-        FROM
-            icu_age AS icu_age
+        FROM icu_age AS icu_age
         LEFT JOIN icu_admit AS icu_admit
-            ON icu_age.pat_map_id = icu_admit.pat_map_id
+            ON icu_age.redcap_record_id = icu_admit.redcap_record_id
         LEFT JOIN vitals_minmax AS vitals_minmax
-            ON icu_age.pat_map_id = vitals_minmax.pat_map_id
+            ON icu_age.redcap_record_id = vitals_minmax.redcap_record_id
         LEFT JOIN fio2_max AS fio2_max
-            ON icu_age.pat_map_id = fio2_max.pat_map_id
+            ON icu_age.redcap_record_id = fio2_max.redcap_record_id
         LEFT JOIN labs_minmax AS labs_minmax
-            ON icu_age.pat_map_id = labs_minmax.pat_map_id
+            ON icu_age.redcap_record_id = labs_minmax.redcap_record_id
         )
-SELECT DISTINCT * FROM apache2_all ORDER BY SAFE_CAST(redcap_record_id AS DECIMAL)
+SELECT * FROM apache2_all ORDER BY SAFE_CAST(redcap_record_id AS NUMERIC)
